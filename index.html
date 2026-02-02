@@ -479,7 +479,7 @@
 
         const captions = [
             { trigger: 62, text: "hmm...", position: { x: 70, y: 30 } },
-            { trigger: 66, text: "NANI?!", position: { x: 20, y: 50 } },
+            { trigger: 66, text: "PELE?!", position: { x: 20, y: 50 } },
             { trigger: 72, text: "OH NO!!!111", position: { x: 55, y: 25 }, shake: true },
             { trigger: 78, text: "まさか!!", position: { x: 15, y: 65 } },
             { trigger: 84, text: "WHATS HAPPENING", position: { x: 30, y: 40 }, shake: true },
@@ -632,8 +632,8 @@
                     captionIndex++;
                 }
 
-                // Speed up during crash (after candle 60)
-                const delay = currentCandleIndex < 60 ? 100 : 60;
+                // Timing: rise phase is 166ms, crash phase is 190ms
+                const delay = currentCandleIndex < 60 ? 166 : 190;
                 chartAnimationId = setTimeout(animateChart, delay);
             } else {
                 // Chart animation complete - transition to proposal
