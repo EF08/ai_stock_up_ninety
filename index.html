@@ -227,6 +227,10 @@
                         opacity 0.3s ease;
             min-width: 100px;
             min-height: 50px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         #yes-btn {
@@ -260,8 +264,17 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-        #no-btn:hover {
+        #no-btn:hover,
+        #no-btn:active {
             background: #777;
+        }
+
+        #yes-btn.enabled:active {
+            transform: scale(0.95);
+        }
+
+        #no-btn:active {
+            transform: scale(0.95);
         }
 
         /* Celebration Screen */
@@ -645,7 +658,7 @@
             "what the heck deddy ik u pressed no :("
         ];
 
-        noBtn.addEventListener('click', () => {
+        function handleNoClick() {
             noClickCount++;
 
             if (noClickCount <= 3) {
@@ -669,12 +682,25 @@
                     yesBtn.classList.add('enabled');
                 }
             }
-        });
+        }
 
-        yesBtn.addEventListener('click', () => {
+        function handleYesClick() {
             if (yesBtn.classList.contains('enabled')) {
                 transitionToCelebration();
             }
+        }
+
+        // Handle both click and touch events for mobile compatibility
+        noBtn.addEventListener('click', handleNoClick);
+        noBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleNoClick();
+        });
+
+        yesBtn.addEventListener('click', handleYesClick);
+        yesBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleYesClick();
         });
 
         function transitionToCelebration() {
@@ -767,12 +793,7 @@
             }
         });
 
-        // Prevent zoom on double tap
-        document.addEventListener('touchend', (e) => {
-            if (e.target.tagName === 'BUTTON') {
-                e.preventDefault();
-            }
-        }, { passive: false });
+        // Touch handling is now done directly on individual buttons above
     </script>
 </body>
 </html>
