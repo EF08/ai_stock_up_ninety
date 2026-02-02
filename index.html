@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Important Market Update</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --chart-bg: #1a1a2e;
+            --chart-grid: #2d2d44;
+            --candle-green: #00ff88;
+            --candle-red: #ff4444;
+            --pink-start: #ff9a9e;
+            --pink-end: #fecfef;
+            --text-accent: #ff1493;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--chart-bg);
+        }
+
+        body {
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease, visibility 0.8s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .screen.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Chart Screen */
+        #chart-screen {
+            background: var(--chart-bg);
+            position: relative;
+        }
+
+        #stock-chart {
+            width: 100%;
+            height: 100%;
+        }
+
+        .chart-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            color: #fff;
+            z-index: 10;
+        }
+
+        .chart-header h1 {
+            font-size: clamp(1.2rem, 4vw, 1.8rem);
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .chart-header .ticker {
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+            color: #888;
+        }
+
+        .chart-header .price {
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            font-weight: 700;
+            margin-top: 10px;
+            transition: color 0.3s;
+        }
+
+        .chart-header .price.up {
+            color: var(--candle-green);
+        }
+
+        .chart-header .price.down {
+            color: var(--candle-red);
+        }
+
+        #captions-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            overflow: hidden;
+        }
+
+        .caption {
+            position: absolute;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: clamp(1.5rem, 7vw, 3rem);
+            color: #fff;
+            text-shadow:
+                3px 3px 0 #ff0000,
+                -3px -3px 0 #ff0000,
+                3px -3px 0 #ff0000,
+                -3px 3px 0 #ff0000,
+                0 0 20px rgba(255, 0, 0, 0.8);
+            animation: caption-pop 0.3s ease-out forwards;
+            transform-origin: center;
+            white-space: nowrap;
+            z-index: 100;
+        }
+
+        @keyframes caption-pop {
+            0% {
+                transform: scale(0) rotate(-10deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.3) rotate(5deg);
+            }
+            100% {
+                transform: scale(1) rotate(-2deg);
+                opacity: 1;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) rotate(-2deg); }
+            25% { transform: translateX(-8px) rotate(-5deg); }
+            75% { transform: translateX(8px) rotate(2deg); }
+        }
+
+        .caption.shake {
+            animation: caption-pop 0.3s ease-out forwards, shake 0.15s ease-in-out infinite 0.3s;
+        }
+
+        /* Proposal Screen */
+        #proposal-screen {
+            background: linear-gradient(135deg, var(--pink-start), var(--pink-end));
+            padding: 20px;
+            text-align: center;
+        }
+
+        .proposal-content {
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .proposal-content h1 {
+            font-size: clamp(1.8rem, 7vw, 2.5rem);
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .proposal-content p {
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+            color: #444;
+            margin-bottom: 40px;
+            line-height: 1.4;
+        }
+
+        #message-area {
+            min-height: 80px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message {
+            font-size: clamp(1rem, 4vw, 1.4rem);
+            color: var(--text-accent);
+            font-weight: 600;
+            animation: message-appear 0.4s ease-out;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+        }
+
+        @keyframes message-appear {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .buttons button {
+            padding: 15px 40px;
+            font-size: clamp(1.2rem, 5vw, 1.6rem);
+            font-weight: 700;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                        box-shadow 0.3s ease,
+                        opacity 0.3s ease;
+            min-width: 100px;
+            min-height: 50px;
+        }
+
+        #yes-btn {
+            background: linear-gradient(135deg, #ff69b4, #ff1493);
+            color: white;
+            opacity: 0.4;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.4);
+        }
+
+        #yes-btn.enabled {
+            opacity: 1;
+            pointer-events: auto;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(255, 105, 180, 0.7),
+                            0 4px 15px rgba(255, 105, 180, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 20px rgba(255, 105, 180, 0),
+                            0 4px 20px rgba(255, 105, 180, 0.6);
+            }
+        }
+
+        #no-btn {
+            background: #888;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #no-btn:hover {
+            background: #777;
+        }
+
+        /* Celebration Screen */
+        #celebration-screen {
+            background: #0a0a0a;
+            position: relative;
+        }
+
+        #fireworks-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .celebration-text {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .celebration-text h1 {
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            color: #fff;
+            text-shadow: 0 0 30px rgba(255, 105, 180, 0.8),
+                         0 0 60px rgba(255, 105, 180, 0.5);
+            animation: celebration-appear 1s ease-out;
+        }
+
+        @keyframes celebration-appear {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .hearts {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 5;
+        }
+
+        .heart {
+            position: absolute;
+            font-size: 30px;
+            animation: float-heart 4s ease-in-out infinite;
+            opacity: 0.8;
+        }
+
+        @keyframes float-heart {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+            }
+            90% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Screen 1: Stock Chart -->
+    <section id="chart-screen" class="screen active">
+        <div class="chart-header">
+            <h1>LOVE Holdings Inc.</h1>
+            <div class="ticker">NASDAQ: LOVE</div>
+            <div class="price up" id="price-display">$100.00</div>
+        </div>
+        <canvas id="stock-chart"></canvas>
+        <div id="captions-container"></div>
+    </section>
+
+    <!-- Screen 2: Proposal -->
+    <section id="proposal-screen" class="screen">
+        <div class="proposal-content">
+            <h1>Dear Bromski,</h1>
+            <p>Will you be Andyski's valentine's?</p>
+            <div id="message-area"></div>
+            <div class="buttons">
+                <button id="yes-btn">YES</button>
+                <button id="no-btn">NO</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screen 3: Celebration -->
+    <section id="celebration-screen" class="screen">
+        <canvas id="fireworks-canvas"></canvas>
+        <div class="celebration-text">
+            <h1>AHH thank you my love</h1>
+        </div>
+        <div class="hearts" id="hearts-container"></div>
+    </section>
+
+    <script>
+        // ===== UTILITIES =====
+        function setupCanvas(canvas) {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            return { ctx, width: rect.width, height: rect.height };
+        }
+
+        // ===== STOCK CHART =====
+        const chartCanvas = document.getElementById('stock-chart');
+        const priceDisplay = document.getElementById('price-display');
+        const captionsContainer = document.getElementById('captions-container');
+
+        let chartCtx, chartWidth, chartHeight;
+        let priceData = [];
+        let currentCandleIndex = 0;
+        let chartAnimationId;
+
+        const captions = [
+            { trigger: 62, text: "hmm...", position: { x: 70, y: 30 } },
+            { trigger: 66, text: "NANI?!", position: { x: 20, y: 50 } },
+            { trigger: 72, text: "OH NO!!!111", position: { x: 55, y: 25 }, shake: true },
+            { trigger: 78, text: "まさか!!", position: { x: 15, y: 65 } },
+            { trigger: 84, text: "WHATS HAPPENING", position: { x: 30, y: 40 }, shake: true },
+            { trigger: 88, text: "やばい!!", position: { x: 60, y: 60 } },
+            { trigger: 92, text: "SELL SELL SELL", position: { x: 10, y: 75 }, shake: true },
+            { trigger: 96, text: "売れ!売れ!", position: { x: 50, y: 80 } }
+        ];
+        let captionIndex = 0;
+
+        function generatePriceData() {
+            const data = [];
+            let price = 100;
+
+            // Rising phase (60 candles) - steady climb with occasional dips
+            for (let i = 0; i < 60; i++) {
+                const open = price;
+                // Bias strongly upward
+                const change = (Math.random() * 3) + 0.5;
+                price += change;
+                // Occasional small pullback
+                if (Math.random() < 0.2) {
+                    price -= Math.random() * 1.5;
+                }
+                const high = Math.max(open, price) + Math.random() * 2;
+                const low = Math.min(open, price) - Math.random() * 1;
+                data.push({ open, high, low, close: price, isUp: price >= open });
+            }
+
+            // Crash phase (40 candles) - dramatic fall
+            for (let i = 0; i < 40; i++) {
+                const open = price;
+                // Strong downward bias, accelerating
+                const crashIntensity = 1 + (i / 40) * 2;
+                const change = -(Math.random() * 6 + 3) * crashIntensity;
+                price += change;
+                price = Math.max(price, 5); // Floor at $5
+                const high = open + Math.random() * 1;
+                const low = Math.min(open, price) - Math.random() * 2;
+                data.push({ open, high, low, close: price, isUp: false });
+            }
+
+            return data;
+        }
+
+        function initChart() {
+            const setup = setupCanvas(chartCanvas);
+            chartCtx = setup.ctx;
+            chartWidth = setup.width;
+            chartHeight = setup.height;
+            priceData = generatePriceData();
+            currentCandleIndex = 0;
+            captionIndex = 0;
+            animateChart();
+        }
+
+        function drawChart() {
+            const ctx = chartCtx;
+            const padding = { top: 120, bottom: 40, left: 10, right: 10 };
+            const chartArea = {
+                x: padding.left,
+                y: padding.top,
+                width: chartWidth - padding.left - padding.right,
+                height: chartHeight - padding.top - padding.bottom
+            };
+
+            // Clear
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, chartWidth, chartHeight);
+
+            // Draw grid lines
+            ctx.strokeStyle = '#2d2d44';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 5; i++) {
+                const y = chartArea.y + (chartArea.height / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(chartArea.x, y);
+                ctx.lineTo(chartArea.x + chartArea.width, y);
+                ctx.stroke();
+            }
+
+            if (currentCandleIndex === 0) return;
+
+            // Calculate visible data
+            const visibleData = priceData.slice(0, currentCandleIndex);
+            const maxPrice = Math.max(...visibleData.map(d => d.high)) * 1.05;
+            const minPrice = Math.min(...visibleData.map(d => d.low)) * 0.95;
+            const priceRange = maxPrice - minPrice;
+
+            // Candle dimensions
+            const candleWidth = Math.max(2, (chartArea.width / 100) * 0.8);
+            const candleGap = chartArea.width / 100;
+
+            // Draw candles
+            visibleData.forEach((candle, i) => {
+                const x = chartArea.x + i * candleGap;
+                const yHigh = chartArea.y + ((maxPrice - candle.high) / priceRange) * chartArea.height;
+                const yLow = chartArea.y + ((maxPrice - candle.low) / priceRange) * chartArea.height;
+                const yOpen = chartArea.y + ((maxPrice - candle.open) / priceRange) * chartArea.height;
+                const yClose = chartArea.y + ((maxPrice - candle.close) / priceRange) * chartArea.height;
+
+                const color = candle.isUp ? '#00ff88' : '#ff4444';
+
+                // Wick
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x + candleWidth / 2, yHigh);
+                ctx.lineTo(x + candleWidth / 2, yLow);
+                ctx.stroke();
+
+                // Body
+                ctx.fillStyle = color;
+                const bodyTop = Math.min(yOpen, yClose);
+                const bodyHeight = Math.max(Math.abs(yClose - yOpen), 1);
+                ctx.fillRect(x, bodyTop, candleWidth, bodyHeight);
+            });
+
+            // Update price display
+            const currentPrice = visibleData[visibleData.length - 1].close;
+            priceDisplay.textContent = '$' + currentPrice.toFixed(2);
+            priceDisplay.className = 'price ' + (currentPrice >= 100 ? 'up' : 'down');
+        }
+
+        function showCaption(captionData) {
+            const caption = document.createElement('div');
+            caption.className = 'caption' + (captionData.shake ? ' shake' : '');
+            caption.textContent = captionData.text;
+            caption.style.left = captionData.position.x + '%';
+            caption.style.top = captionData.position.y + '%';
+            caption.style.transform = 'translate(-50%, -50%)';
+            captionsContainer.appendChild(caption);
+
+            // Remove after animation
+            setTimeout(() => {
+                caption.style.transition = 'opacity 0.5s';
+                caption.style.opacity = '0';
+                setTimeout(() => caption.remove(), 500);
+            }, 1500);
+        }
+
+        function animateChart() {
+            if (currentCandleIndex < priceData.length) {
+                currentCandleIndex++;
+                drawChart();
+
+                // Check for caption triggers
+                while (captionIndex < captions.length &&
+                       currentCandleIndex >= captions[captionIndex].trigger) {
+                    showCaption(captions[captionIndex]);
+                    captionIndex++;
+                }
+
+                // Speed up during crash (after candle 60)
+                const delay = currentCandleIndex < 60 ? 100 : 60;
+                chartAnimationId = setTimeout(animateChart, delay);
+            } else {
+                // Chart animation complete - transition to proposal
+                setTimeout(transitionToProposal, 1500);
+            }
+        }
+
+        function transitionToProposal() {
+            document.getElementById('chart-screen').classList.remove('active');
+            document.getElementById('proposal-screen').classList.add('active');
+        }
+
+        // ===== PROPOSAL LOGIC =====
+        const yesBtn = document.getElementById('yes-btn');
+        const noBtn = document.getElementById('no-btn');
+        const messageArea = document.getElementById('message-area');
+
+        let noClickCount = 0;
+        const messages = [
+            "WAIT are you sure?",
+            "are you sure sure?",
+            "what the heck deddy ik u pressed no :("
+        ];
+
+        noBtn.addEventListener('click', () => {
+            noClickCount++;
+
+            if (noClickCount <= 3) {
+                // Show message
+                messageArea.innerHTML = '';
+                const msgEl = document.createElement('div');
+                msgEl.className = 'message';
+                msgEl.textContent = messages[noClickCount - 1];
+                messageArea.appendChild(msgEl);
+
+                // Shrink NO button
+                const shrinkFactor = 1 - (noClickCount * 0.25);
+                noBtn.style.transform = `scale(${shrinkFactor})`;
+
+                // Grow YES button
+                const growFactor = 1 + (noClickCount * 0.35);
+                yesBtn.style.transform = `scale(${growFactor})`;
+
+                if (noClickCount === 3) {
+                    // Enable YES button
+                    yesBtn.classList.add('enabled');
+                }
+            }
+        });
+
+        yesBtn.addEventListener('click', () => {
+            if (yesBtn.classList.contains('enabled')) {
+                transitionToCelebration();
+            }
+        });
+
+        function transitionToCelebration() {
+            document.getElementById('proposal-screen').classList.remove('active');
+            document.getElementById('celebration-screen').classList.add('active');
+            initFireworks();
+            createFloatingHearts();
+        }
+
+        // ===== FIREWORKS =====
+        const fireworksCanvas = document.getElementById('fireworks-canvas');
+        let fwCtx, fwWidth, fwHeight;
+        let fireworks = [];
+        let particles = [];
+        let fireworksRunning = false;
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.friction = 0.97;
+                this.gravity = 0.05;
+                this.size = Math.random() * 3 + 1;
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.015;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Firework {
+            constructor(width, height) {
+                this.x = Math.random() * width;
+                this.y = height;
+                this.targetY = Math.random() * height * 0.4 + height * 0.1;
+                this.vy = -(Math.random() * 4 + 8);
+                this.exploded = false;
+                this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+            }
+
+            update() {
+                if (!this.exploded) {
+                    this.y += this.vy;
+                    this.vy += 0.1;
+                    if (this.y <= this.targetY || this.vy >= 0) {
+                        this.explode();
+                    }
+                }
+            }
+
+            explode() {
+                this.exploded = true;
+                const particleCount = Math.floor(Math.random() * 40) + 60;
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push(new Particle(this.x, this.y, this.color));
+                }
+            }
+
+            draw(ctx) {
+                if (!this.exploded) {
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function initFireworks() {
+            const setup = setupCanvas(fireworksCanvas);
+            fwCtx = setup.ctx;
+            fwWidth = setup.width;
+            fwHeight = setup.height;
+            fireworksRunning = true;
+            animateFireworks();
+
+            // Launch fireworks periodically
+            setInterval(() => {
+                if (fireworksRunning) {
+                    fireworks.push(new Firework(fwWidth, fwHeight));
+                }
+            }, 400);
+        }
+
+        function animateFireworks() {
+            if (!fireworksRunning) return;
+
+            // Fade effect
+            fwCtx.fillStyle = 'rgba(10, 10, 10, 0.15)';
+            fwCtx.fillRect(0, 0, fwWidth, fwHeight);
+
+            // Update and draw fireworks
+            fireworks = fireworks.filter(fw => !fw.exploded);
+            fireworks.forEach(fw => {
+                fw.update();
+                fw.draw(fwCtx);
+            });
+
+            // Update and draw particles
+            particles = particles.filter(p => p.alpha > 0);
+            particles.forEach(p => {
+                p.update();
+                p.draw(fwCtx);
+            });
+
+            requestAnimationFrame(animateFireworks);
+        }
+
+        // Floating hearts
+        function createFloatingHearts() {
+            const container = document.getElementById('hearts-container');
+            const hearts = ['❤️', '💕', '💖', '💗', '💓', '💝'];
+
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const heart = document.createElement('div');
+                    heart.className = 'heart';
+                    heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+                    heart.style.left = Math.random() * 100 + '%';
+                    heart.style.animationDuration = (Math.random() * 3 + 3) + 's';
+                    heart.style.animationDelay = Math.random() * 2 + 's';
+                    container.appendChild(heart);
+                }, i * 200);
+            }
+
+            // Keep adding hearts
+            setInterval(() => {
+                const heart = document.createElement('div');
+                heart.className = 'heart';
+                heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+                heart.style.left = Math.random() * 100 + '%';
+                heart.style.animationDuration = (Math.random() * 3 + 3) + 's';
+                container.appendChild(heart);
+                setTimeout(() => heart.remove(), 6000);
+            }, 500);
+        }
+
+        // ===== INIT =====
+        window.addEventListener('load', initChart);
+        window.addEventListener('resize', () => {
+            if (document.getElementById('chart-screen').classList.contains('active')) {
+                const setup = setupCanvas(chartCanvas);
+                chartCtx = setup.ctx;
+                chartWidth = setup.width;
+                chartHeight = setup.height;
+                drawChart();
+            }
+            if (document.getElementById('celebration-screen').classList.contains('active')) {
+                const setup = setupCanvas(fireworksCanvas);
+                fwCtx = setup.ctx;
+                fwWidth = setup.width;
+                fwHeight = setup.height;
+            }
+        });
+
+        // Prevent zoom on double tap
+        document.addEventListener('touchend', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
